@@ -79,13 +79,15 @@ type Tree<'T> =
         | _ -> failwith "Should not happen"
 
     member this.Add(x) =
-        let rec add l =
+        let rec add x l =
             match l with
-            | Leaf -> Tree<_>.createNode x Leaf Leaf
-            | Node (x, _, left, right) ->
-                let right = add right
-                Tree<_>.createNode x left right
-        add this |> Tree<_>.BalanceNode
+            | Leaf ->
+                Tree<_>.createNode x Leaf Leaf
+            | Node (y, _, left, right) ->
+                add x right
+                |> Tree<_>.createNode y left
+                |> Tree<_>.BalanceNode
+        add x this
 
     member this.Insert(i, x) =
         let rec insert i node x =

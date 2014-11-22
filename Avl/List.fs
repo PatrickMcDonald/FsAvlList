@@ -29,50 +29,96 @@ type Tree<'T> =
         | Leaf -> failwith "Invalid operation"
         | Node (_, _, _, right) -> right
 
-    member this.Add x =
+    static member private Balance tree =
+        match tree with
+        | Leaf -> 0
+        | Node (x, h, left, right) -> right.Height - left.Height
 
-        let balance node =
-            match node with
-            | Leaf -> 0
-            | Node (x, h, left, right) -> right.Height - left.Height
+    static member internal createNode x (left: Tree<_>) (right: Tree<_>) =
+        Node (x, 1 + max left.Height right.Height, left, right)
 
-        let rotateRight = function
-            | Leaf -> Leaf
-            | Node (x, _, left, right) ->
-                let newRight = Node (x, 0, left.Right, right)
-                Node (left.Value, 0, left.Left, newRight)
+    member private this.RotateRight() =
+        match this with
+        | Leaf -> Leaf
+        | Node (x, _, left, right) ->
+            let newRight = Tree<_>.createNode x left.Right right
+            Tree<_>.createNode left.Value left.Left newRight
 
-        let rotateLeft = function
-            | Leaf -> Leaf
-            | Node (x, _, left, right) ->
-                let newLeft = Node (x, 0, left, right.Left)
-                let h = 1 + max newLeft.Height right.Right.Height
-                Node (right.Value, h, newLeft, right.Right)
+    member private this.RotateLeft() =
+        match this with
+        | Leaf -> Leaf
+        | Node (x, _, left, right) ->
+            let newLeft = Tree<_>.createNode x left right.Left
+            Tree<_>.createNode right.Value newLeft right.Right
 
-        let balanceNode node =
-            match balance node with
-            | -1 | 0 | 1 -> node
-            | x when x > 1 ->
-                match node with
-                | Leaf -> failwith "Should not happen"
-                | Node (x, _, left, right) when balance right >= 0 -> rotateLeft node
-                | _ -> node
-            | _ -> rotateRight node
+    static member private RotateDoubleRight tree =
+        match tree with
+        | Leaf -> Leaf
+        | Node (x, _, left, right) ->
+            (Tree<_>.createNode x (left.RotateLeft()) right).RotateRight()
 
+    static member private RotateDoubleLeft tree =
+        match tree with
+        | Leaf -> Leaf
+        | Node (x, _, left, right) ->
+            (Tree<_>.createNode x left (right.RotateRight())).RotateLeft()
+
+    static member private BalanceNode(tree) =
+        match Tree<_>.Balance tree with
+        | -1 | 0 | 1 -> tree
+        | x when x > 1 ->
+            match tree with
+            | Leaf -> failwith "Should not happen"
+            | Node (x, _, left, right) when Tree<_>.Balance right < 0 -> tree |> Tree<_>.RotateDoubleLeft
+            | _ -> tree.RotateLeft()
+        | x when x < -1 ->
+            match tree with
+            | Leaf -> failwith "Should not happen"
+            | Node (x, _, left, right) when Tree<_>.Balance left > 0 -> tree |> Tree<_>.RotateDoubleRight
+            | _ -> tree.RotateRight()
+        | _ -> failwith "Should not happen"
+
+    member this.Add(x) =
         let rec add l =
             match l with
-            | Leaf -> Node (x, 0, Leaf, Leaf)
+            | Leaf -> Tree<_>.createNode x Leaf Leaf
             | Node (x, _, left, right) ->
                 let right = add right
-                let h = 1 + max left.Height right.Height
-                Node (x, h, left, right)
-        add this |> balanceNode
+                Tree<_>.createNode x left right
+        add this |> Tree<_>.BalanceNode
 
-    member this.AddRange collection =
+    member this.Insert(i, x) =
+        let rec insert i node x =
+            match node with
+            | Leaf ->
+                if i = 0 then
+                    Tree<_>.createNode x Leaf Leaf
+                else
+                    failwith "Index out of bounds"
+            | Node (y, _, left, right) ->
+                if i <= left.Length then
+                    let newLeft = insert i left x
+                    Tree<_>.createNode y newLeft right |> Tree<_>.BalanceNode
+                else
+                    let newRight = insert (i - left.Length - 1) right x
+                    let h = 1 + max left.Height newRight.Height
+                    Tree<_>.createNode y left newRight |> Tree<_>.BalanceNode
+        insert i this x
+
+    member this.AddRange(collection) =
         let mutable result = this
         for item in collection do
             result <- result.Add item
         result
+
+    member this.InsertRange(i, collection) =
+        let mutable i' = i
+        let mutable result = this
+        for item in collection do
+            result <- result.Insert(i', item)
+            i' <- i' + 1
+        result
+
 
 let empty = Leaf
 
@@ -89,7 +135,7 @@ let create seq =
         let mid = low + (high - low) / 2
         let left = init low (mid - 1)
         let right = init (mid + 1) high
-        Node (a.[mid], 1 + max left.Height right.Height, left, right)
+        Tree<_>.createNode a.[mid] left right
     init 0 (a.Length - 1)
 
 let rec asSeq tree =
@@ -108,8 +154,11 @@ let asArray tree =
 let add x (l: Tree<_>) =
     l.Add(x)
 
-let addRange collection tree =
-    let mutable result = tree
-    for item in collection do
-        result <- result |> add item
-    result
+let addRange collection (l: Tree<_>) =
+    l.AddRange collection
+
+let insert i x (l: Tree<_>) =
+    l.Insert(i, x)
+
+let insertRange i collection (l: Tree<_>) =
+    l.InsertRange(i, collection)

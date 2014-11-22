@@ -22,3 +22,6 @@ AvlList.create [| 1 .. 3 |]
 AvlList.create [| 1 .. 7 |]
 |> AvlList.add 8
 |> describe
+
+
+AvlList.empty |> AvlList.insert 0 3 |> AvlList.insert 0 2 |> AvlList.insert 0 1

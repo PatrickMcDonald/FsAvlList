@@ -6,8 +6,8 @@ open Swensen.Unquote
 
 [<Test>]
 let ``Given a list, create gives the correct result``() =
-    let expected = [| 1..10 |]
-    test <@ seq { 1..10 } |> AvlList.create |> AvlList.asArray = expected @>
+    for i in 0 .. 256 do
+        test <@ seq { 1..i } |> AvlList.create |> AvlList.asArray = [| 1..i |] @>
 
 [<Test>]
 let ``Given a list, length gives the correct result``() =
@@ -39,24 +39,54 @@ let rec isBalanced = function
         else
             isBalanced left && isBalanced right
 
+let validate expected height list =
+    let a = list |> AvlList.asArray
+    a = expected &&
+    list.Height = height &&
+    isBalanced list
+
 [<Test>]
-let ``Given a list, verify that create returns a balanced list``() =
+let ``Given a list, create returns a balanced list``() =
     test <@ AvlList.empty |> isBalanced @>
-    test <@ seq { 1..1 } |> AvlList.create |> isBalanced @>
+    for i in 1 .. 100 do
+        test <@ seq { 1..i } |> AvlList.create |> isBalanced @>
     test <@ seq { 1..3 } |> AvlList.create |> isBalanced @>
     test <@ seq { 1..4 } |> AvlList.create |> isBalanced @>
     test <@ seq { 1..7 } |> AvlList.create |> isBalanced @>
     test <@ seq { 1..8 } |> AvlList.create |> isBalanced @>
 
 [<Test>]
-let ``Given a list, verify that add returns a list with the correct height``() =
+let ``Given a list, add returns a tree with the correct height``() =
     test <@ AvlList.empty |> AvlList.add 1 |> AvlList.height = 0 @>
     test <@ AvlList.empty |> AvlList.add 1 |> AvlList.add 2 |> AvlList.height = 1 @>
     test <@ AvlList.empty |> AvlList.add 1 |> AvlList.add 2 |> AvlList.add 3 |> AvlList.height = 1 @>
 
 [<Test>]
-let ``Given a list, verify that add returns a balanced list``() =
+let ``Given a list, add returns a balanced tree``() =
     test <@ AvlList.empty |> AvlList.add 1 |> isBalanced @>
     test <@ AvlList.empty |> AvlList.add 1 |> AvlList.add 2 |> isBalanced @>
     test <@ AvlList.empty |> AvlList.add 1 |> AvlList.add 2 |> AvlList.add 3 |> isBalanced @>
 
+[<Test>]
+let ``Given a list, insert gives the correct result``() =
+    let expected = [| 1..7 |]
+    test <@ seq { 2..7 } |> AvlList.create |> AvlList.insert 0 1 |> AvlList.asArray = expected @>
+
+[<Test>]
+let ``Given a list, insert returns a balanced tree``() =
+    test <@ AvlList.empty |> AvlList.insert 0 1 |> AvlList.insert 1 2 |> AvlList.insert 2 3 |> isBalanced @>
+    test <@ AvlList.empty |> AvlList.insert 0 3 |> AvlList.insert 0 2 |> AvlList.insert 0 1 |> isBalanced @>
+    test <@ AvlList.empty |> AvlList.insert 0 3 |> AvlList.insert 0 1 |> AvlList.insert 1 2 |> isBalanced @>
+    test <@ AvlList.empty |> AvlList.insert 0 1 |> AvlList.insert 1 3 |> AvlList.insert 1 2 |> isBalanced @>
+
+[<Test>]
+let ``Given a list, insert returns a tree with the correct height``() =
+    test <@ AvlList.empty |> AvlList.insert 0 1 |> AvlList.insert 1 2 |> AvlList.insert 2 3 |> AvlList.height = 1 @>
+    test <@ AvlList.empty |> AvlList.insert 0 3 |> AvlList.insert 0 2 |> AvlList.insert 0 1 |> AvlList.height = 1 @>
+    test <@ AvlList.empty |> AvlList.insert 0 3 |> AvlList.insert 0 1 |> AvlList.insert 1 2 |> AvlList.height = 1 @>
+    test <@ AvlList.empty |> AvlList.insert 0 1 |> AvlList.insert 1 3 |> AvlList.insert 1 2 |> AvlList.height = 1 @>
+
+[<Test>]
+let ``Given a list, insertRange gives the correct result``() =
+    test <@ AvlList.empty |> AvlList.insertRange 0 [| 5..7 |] |> AvlList.insertRange 0 [| 1..2 |]
+            |> AvlList.insertRange 2 [| 3..4 |] |> validate [| 1..7 |] 3 @>
